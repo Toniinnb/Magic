@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>沉浸式节日祝福引擎</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; color: white; font-family: sans-serif; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; transition: opacity 0.5s; }
+        #ui-layer { position: absolute; bottom: 20px; left: 0; width: 100%; text-align: center; pointer-events: none; }
+        .btn { pointer-events: auto; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 10px 20px; border-radius: 20px; cursor: pointer; backdrop-filter: blur(5px); transition: 0.3s; }
+        .btn:hover { background: rgba(255,255,255,0.3); }
+    </style>
+</head>
+<body>
+
+    <div id="loading">正在连接节日引擎...</div>
+    <div id="ui-layer">
+        <h1 id="theme-title" style="font-weight: 200; letter-spacing: 2px; font-size: 1.2rem; opacity: 0.8;">加载中...</h1>
+        <button id="sound-btn" class="btn">🔊 开启声音互动</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://esm.sh/three@0.160.0';
+        import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+
+        // --- 1. 配置与数据库连接 ---
+        const SUPABASE_URL = 'https://tcviiqrcgijnxgwmzjkq.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_VmvFMbF53RtgkovrckT_fQ_V9vh6yFS'; // 注意：这是你的 Public Key，前端可见是正常的
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- 2. 场景初始化 ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.05); // 雾气效果，增加深邃感
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 15;
+        camera.position.y = 5;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 1.0;
+
+        // --- 3. 核心视觉：粒子树生成器 ---
+        let particles;
+        
+        function createTree(config) {
+            // 清理旧场景
+            if(particles) scene.remove(particles);
+
+            const count = config.visual.particleCount || 2000;
+            const color1 = new THREE.Color(config.visual.primaryColor || '#FFD700');
+            const color2 = new THREE.Color(config.visual.secondaryColor || '#FF0000');
+
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+
+            // 算法：生成螺旋向上的圆锥体粒子
+            for (let i = 0; i < count; i++) {
+                // 这是一个经典的螺旋算法
+                const angle = i * 0.1; 
+                const radius = (count - i) * 0.005; // 底部宽，顶部窄
+                const y = (i * 0.01) - 5; // 高度分布
+
+                // 加入一些随机扰动，让它看起来更像自然的树叶/光点，而不是死板的几何体
+                const randomX = (Math.random() - 0.5) * 0.5;
+                const randomZ = (Math.random() - 0.5) * 0.5;
+                const randomY = (Math.random() - 0.5) * 0.5;
+
+                positions.push(
+                    Math.cos(angle) * radius + randomX, 
+                    y + randomY, 
+                    Math.sin(angle) * radius + randomZ
+                );
+
+                // 颜色混合
+                const mixedColor = color1.clone().lerp(color2, Math.random());
+                colors.push(mixedColor.r, mixedColor.g, mixedColor.b);
+            }
+
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.15,
+                vertexColors: true,
+                blending: THREE.AdditiveBlending, // 光叠加模式，看起来发光
+                depthWrite: false,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+        }
+
+        // --- 4. 数据驱动逻辑 ---
+        async function loadTheme() {
+            // 从数据库拉取 'active' 为 true 的主题
+            const { data, error } = await supabase
+                .from('themes')
+                .select('*')
+                .eq('is_active', true)
+                .single(); // 只取一个
+
+            const titleEl = document.getElementById('theme-title');
+            const loadingEl = document.getElementById('loading');
+
+            if (error || !data) {
+                console.warn('数据库读取失败或无激活主题，使用本地备份配置', error);
+                // 失败时的兜底（本地默认效果）
+                createTree({
+                    visual: { primaryColor: '#00ff00', secondaryColor: '#ffffff', particleCount: 3000 }
+                });
+                titleEl.innerText = "本地安全模式 (DB未连接)";
+            } else {
+                console.log('从 Supabase 加载配置成功:', data.name);
+                // 使用数据库里的配置渲染！
+                createTree(data.config);
+                titleEl.innerText = data.name;
+                
+                // 动态修改背景色
+                if(data.config.visual.backgroundColor) {
+                    renderer.setClearColor(data.config.visual.backgroundColor);
+                    scene.fog.color.set(data.config.visual.backgroundColor);
+                }
+            }
+            
+            loadingEl.style.opacity = 0;
+        }
+
+        // --- 5. 渲染循环 ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            controls.update();
+
+            // 简单的动态呼吸效果
+            if (particles) {
+                particles.rotation.y = time * 0.05; // 整体极慢自转
+                
+                // 模拟粒子闪烁
+                const sizes = particles.material.size;
+                // 这里未来可以接入音频数据 audioData 来控制
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- 6. 交互与启动 ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 启动！
+        loadTheme();
+        animate();
+
+    </script>
+</body>
+</html>
