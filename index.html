@@ -2,32 +2,39 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>沉浸式节日祝福引擎 (Organic Ver.)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>沉浸式节日引擎 (Magnetic Field)</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #020202; color: white; font-family: sans-serif; }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; transition: opacity 0.5s; font-weight: 300; letter-spacing: 2px; text-transform: uppercase; }
-        #ui-layer { position: absolute; bottom: 40px; left: 0; width: 100%; text-align: center; pointer-events: none; z-index: 10; }
-        .btn { pointer-events: auto; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); padding: 12px 30px; border-radius: 50px; cursor: pointer; backdrop-filter: blur(10px); transition: 0.4s; font-size: 12px; letter-spacing: 2px; }
-        .btn:hover { background: rgba(255,255,255,0.2); color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.1); }
-        #debug-info { position: absolute; top: 10px; left: 10px; color: rgba(255,255,255,0.2); font-size: 10px; pointer-events: none; font-family: monospace; }
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        #loading { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            color: rgba(255,255,255,0.5); font-family: sans-serif; letter-spacing: 2px; pointer-events: none;
+        }
+        #ui-container {
+            position: absolute; bottom: 40px; width: 100%; text-align: center; pointer-events: none;
+        }
+        .btn { 
+            pointer-events: auto; background: rgba(255,255,255,0.1); 
+            border: 1px solid rgba(255,255,255,0.3); color: #fff; 
+            padding: 15px 40px; border-radius: 50px; cursor: pointer; 
+            font-size: 14px; text-transform: uppercase; letter-spacing: 1px;
+            backdrop-filter: blur(10px); transition: 0.2s;
+        }
+        .btn:hover { background: rgba(255,255,255,0.3); box-shadow: 0 0 20px rgba(255,255,255,0.2); }
+        .btn:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
 
-    <div id="loading">Planting the Tree...</div>
-    <div id="debug-info"></div>
-    
-    <div id="ui-layer">
-        <h1 id="theme-title" style="margin-bottom: 10px; font-weight: 100; font-size: 1.2rem; opacity: 0.9;">...</h1>
-        <button id="sound-btn" class="btn">🔊 开启氛围</button>
+    <div id="loading">BUILDING VISUALS...</div>
+    <div id="ui-container">
+        <button id="sound-btn" class="btn">🔴 点击开启声音与魔法</button>
     </div>
 
     <script type="importmap">
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
                 "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"
             }
         }
@@ -35,227 +42,263 @@
 
     <script type="module">
         import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { createClient } from '@supabase/supabase-js';
 
-        // --- 配置区 ---
-        const SUPABASE_URL = 'https://tcviiqrcgijnxgwmzjkq.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_VmvFMbF53RtgkovrckT_fQ_V9vh6yFS';
-        
-        const debugEl = document.getElementById('debug-info');
-        const titleEl = document.getElementById('theme-title');
-        const loadingEl = document.getElementById('loading');
-
-        // --- 场景 ---
+        // --- 1. 初始化场景 ---
         const scene = new THREE.Scene();
-        // 更加深邃的背景雾，模拟夜间森林
-        scene.fog = new THREE.FogExp2(0x020202, 0.035);
+        scene.fog = new THREE.FogExp2(0x000000, 0.02);
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 0, 16); // 视角放平，看全貌
+        // 摄像机固定，不再乱转
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0, 14); 
+        camera.lookAt(0, 0, 0);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.5;
-        controls.maxDistance = 25;
-        controls.minDistance = 2;
+        // --- 2. 交互核心：鼠标/触摸追踪 ---
+        const mouse = new THREE.Vector2(9999, 9999); // 初始位置在屏幕外
+        const raycaster = new THREE.Raycaster();
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0); // 虚拟平面，用于捕捉鼠标在3D空间的位置
+        const target3D = new THREE.Vector3();
 
-        // --- 核心修改：有机树生成算法 ---
-        let treeSystem;
+        function updateMouse(event) {
+            let x, y;
+            if (event.changedTouches) {
+                x = event.changedTouches[0].clientX;
+                y = event.changedTouches[0].clientY;
+            } else {
+                x = event.clientX;
+                y = event.clientY;
+            }
+            // 归一化坐标 (-1 到 +1)
+            mouse.x = (x / window.innerWidth) * 2 - 1;
+            mouse.y = -(y / window.innerHeight) * 2 + 1;
 
-        function createTree(config) {
-            if(treeSystem) scene.remove(treeSystem);
+            // 计算鼠标在 Z=0 平面上的 3D 坐标
+            raycaster.setFromCamera(mouse, camera);
+            raycaster.ray.intersectPlane(plane, target3D);
+        }
 
-            // 读取配置或使用默认值
-            const count = config.visual.particleCount || 4000; // 增加粒子数以获得茂密感
-            const primaryHex = config.visual.primaryColor || '#2E8B57'; // 默认树叶绿
-            const secondaryHex = config.visual.secondaryColor || '#FFD700'; // 默认灯光金
+        window.addEventListener('mousemove', updateMouse);
+        window.addEventListener('touchmove', updateMouse, { passive: false });
+
+        // --- 3. 粒子系统 (GPU Shader) ---
+        // 关键：所有动画都在显卡里算，不消耗 CPU，才能流畅处理 20000 个点
+        
+        // 顶点着色器：控制位置、大小、磁场干扰
+        const vertexShader = `
+            uniform float uTime;
+            uniform vec3 uMouse;
+            uniform float uAudio;
             
-            const colorLeaf = new THREE.Color(primaryHex); 
-            const colorLight = new THREE.Color(secondaryHex);
+            attribute float size;
+            attribute vec3 originPos; // 原始位置（记忆）
+            attribute float aRandom;  // 随机因子
 
+            varying vec3 vColor;
+
+            void main() {
+                vec3 pos = originPos;
+
+                // 1. 基础呼吸 (随时间微动)
+                pos.y += sin(uTime * 2.0 + pos.x) * 0.05;
+
+                // 2. 磁场干扰 (核心交互)
+                // 计算粒子到鼠标的距离
+                float dist = distance(pos.xy, uMouse.xy);
+                float radius = 2.5; // 磁场半径
+                
+                if(dist < radius) {
+                    // 力的方向：从鼠标指向粒子 (排斥)
+                    vec3 dir = normalize(pos - uMouse);
+                    float force = (radius - dist) / radius; // 越近力越大
+                    
+                    // 类似爆炸推开
+                    pos += dir * force * 3.0; 
+                    
+                    // 碰到的粒子变大、变亮
+                    gl_PointSize = size * (1.0 + force * 5.0 + uAudio * 0.5) * (300.0 / -mvPosition.z);
+                    vColor = vec3(1.0, 0.9, 0.5); // 变成火花色
+                } else {
+                    // 没碰到就是原样
+                    gl_PointSize = size * (1.0 + uAudio * 0.2) * (300.0 / -mvPosition.z);
+                    vColor = color;
+                }
+                
+                // 3. 声音震动
+                pos.x += sin(uTime * 10.0 + pos.y) * uAudio * 0.1;
+
+                vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `;
+
+        const fragmentShader = `
+            varying vec3 vColor;
+            void main() {
+                // 圆形粒子绘制
+                float d = distance(gl_PointCoord, vec2(0.5));
+                if(d > 0.5) discard;
+                
+                // 中心亮，边缘暗
+                float alpha = 1.0 - smoothstep(0.1, 0.5, d);
+                gl_FragColor = vec4(vColor, alpha * 0.8);
+            }
+        `;
+
+        // --- 4. 生成真正的树形 ---
+        function generateTree() {
+            const particleCount = 20000;
             const geometry = new THREE.BufferGeometry();
+            
             const positions = [];
+            const origins = [];
             const colors = [];
             const sizes = [];
-            const randoms = []; // 用于动画的随机相位
+            const randoms = [];
 
-            // 算法：分层堆叠 + 枝叶噪声
-            const layers = 18; // 树的层数
-            const particlesPerLayer = Math.floor(count / layers);
+            const colorGreen = new THREE.Color('#1a5c20'); // 深绿
+            const colorBright = new THREE.Color('#4caf50'); // 嫩绿
+            const colorTrunk = new THREE.Color('#3e2723'); // 树干褐
 
-            for (let l = 0; l < layers; l++) {
-                // 当前层的高度进度 (0 = 顶端, 1 = 底端)
-                const t = l / (layers - 1); 
-                const layerY = 6 - (t * 12); // 从 +6 到 -6
-                
-                // 每一层的最大半径 (上面窄，下面宽，呈指数曲线)
-                const maxRadius = 0.2 + (t * t * 5.5); 
+            for(let i = 0; i < particleCount; i++) {
+                let x, y, z, r, g, b, s;
 
-                for (let i = 0; i < particlesPerLayer; i++) {
-                    // 在这一层里生成粒子
-                    // 关键：不均匀分布。角度要聚拢，模拟树枝
-                    const angleBase = (Math.PI * 2 * i) / particlesPerLayer;
-                    // 加入一点正弦波扰动，让每一层像花瓣一样有凹凸
-                    const branchNoise = Math.sin(angleBase * 5); // 5个主分叉
-                    
-                    const r = Math.random() * maxRadius * (0.8 + 0.2 * branchNoise);
+                // 90% 是树叶，10% 是树干
+                if (i < particleCount * 0.9) {
+                    // 树叶：圆锥体分布
+                    // 高度 -4 到 6
+                    const h = Math.random() * 10 - 4; 
+                    // 半径随高度变小 (线性收缩)
+                    const maxR = (6 - h) * 0.45; 
                     const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.random() * maxR;
 
-                    // 最终位置
-                    const x = Math.cos(angle) * r;
-                    const z = Math.sin(angle) * r;
-                    // Y轴增加随机厚度，不要像纸片一样薄
-                    const y = layerY - (Math.random() * 0.8) + (Math.abs(x)*0.2); // 树枝自然下垂效果
+                    x = Math.cos(angle) * radius;
+                    y = h;
+                    z = Math.sin(angle) * radius;
 
-                    positions.push(x, y, z);
-                    randoms.push(Math.random());
+                    // 颜色杂乱度
+                    const mix = Math.random();
+                    const c = colorGreen.clone().lerp(colorBright, Math.pow(mix, 3));
+                    r = c.r; g = c.g; b = c.b;
+                    s = Math.random() * 0.15 + 0.05;
+                } else {
+                    // 树干：圆柱体
+                    const h = Math.random() * 5 - 5; // -5 到 0
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.random() * 0.5;
 
-                    // 颜色分配：内部是暗绿，边缘是亮色/灯光
-                    const distFromCenter = Math.sqrt(x*x + z*z) / maxRadius;
-                    
-                    if (Math.random() > 0.92 && distFromCenter > 0.5) {
-                        // 8% 的概率生成“彩灯”，且只挂在树梢外部
-                        colors.push(colorLight.r, colorLight.g, colorLight.b);
-                        sizes.push(0.3 + Math.random() * 0.3); // 灯大一点
-                    } else {
-                        // 树叶粒子
-                        // 越靠外越亮，越靠里越暗（模拟光照遮蔽）
-                        const leafColor = colorLeaf.clone().multiplyScalar(0.5 + distFromCenter * 0.5);
-                        colors.push(leafColor.r, leafColor.g, leafColor.b);
-                        sizes.push(0.1 + Math.random() * 0.1); // 叶子小一点
-                    }
+                    x = Math.cos(angle) * radius;
+                    y = h;
+                    z = Math.sin(angle) * radius;
+
+                    r = colorTrunk.r; g = colorTrunk.g; b = colorTrunk.b;
+                    s = 0.2;
                 }
+
+                positions.push(x, y, z);
+                origins.push(x, y, z); // 记录原始位置用于回弹
+                colors.push(r, g, b);
+                sizes.push(s);
+                randoms.push(Math.random());
             }
 
-            // 顶部的星星 (额外加一个大点)
-            positions.push(0, 6.2, 0);
-            colors.push(1, 1, 0.8); // 亮白金
-            sizes.push(0.8);
-            randoms.push(0);
-
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('originPos', new THREE.Float32BufferAttribute(origins, 3));
             geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
             geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
             geometry.setAttribute('aRandom', new THREE.Float32BufferAttribute(randoms, 1));
 
-            // 材质
             const material = new THREE.ShaderMaterial({
                 uniforms: {
-                    time: { value: 0 },
-                    pointTexture: { value: new THREE.TextureLoader().load('https://assets.codepen.io/127738/dotTexture.png') } // 使用一个简单的辉光贴图
+                    uTime: { value: 0 },
+                    uMouse: { value: new THREE.Vector3(99, 99, 0) },
+                    uAudio: { value: 0 }
                 },
-                vertexShader: `
-                    attribute float size;
-                    attribute float aRandom;
-                    attribute vec3 color;
-                    varying vec3 vColor;
-                    uniform float time;
-                    void main() {
-                        vColor = color;
-                        vec3 pos = position;
-                        
-                        // 风吹效果：高度越高，晃动越大
-                        float windStrength = max(0.0, pos.y + 5.0) * 0.1;
-                        pos.x += sin(time * 1.5 + pos.y) * windStrength * 0.2;
-                        pos.z += cos(time * 1.2 + pos.y) * windStrength * 0.2;
-
-                        // 呼吸律动
-                        if(color.r > 0.8) { // 如果是灯光（红色分量高）
-                            float blink = sin(time * 3.0 + aRandom * 10.0);
-                            pos *= 1.0 + (blink * 0.02); // 轻微缩放
-                        }
-
-                        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-                        gl_PointSize = size * (300.0 / -mvPosition.z);
-                        gl_Position = projectionMatrix * mvPosition;
-                    }
-                `,
-                fragmentShader: `
-                    varying vec3 vColor;
-                    void main() {
-                        // 简单的圆形辉光绘制 (无需外部贴图也能跑，但为了效果这里模拟一下)
-                        float d = distance(gl_PointCoord, vec2(0.5));
-                        if(d > 0.5) discard;
-                        
-                        // 边缘柔化
-                        float alpha = 1.0 - smoothstep(0.3, 0.5, d);
-                        gl_FragColor = vec4(vColor, alpha);
-                    }
-                `,
+                vertexShader: vertexShader.replace('mvPosition', 'mvPosition'), // Hack to ensure scope
+                fragmentShader: fragmentShader,
                 transparent: true,
                 depthWrite: false,
                 blending: THREE.AdditiveBlending
             });
 
-            treeSystem = new THREE.Points(geometry, material);
-            scene.add(treeSystem);
+            const points = new THREE.Points(geometry, material);
+            scene.add(points);
+            return points;
         }
 
-        // --- 数据与逻辑 ---
-        async function initEngine() {
-            // 默认视觉配置 (冷杉绿 + 暖金)
-            const fallbackConfig = {
-                name: "默认：北欧冷杉",
-                config: {
-                    visual: { primaryColor: '#2E8B57', secondaryColor: '#FFD700', particleCount: 5000 }
-                }
-            };
+        const tree = generateTree();
+        document.getElementById('loading').style.display = 'none';
 
-            try {
-                debugEl.innerText = "Connecting...";
-                const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-                
-                const { data, error } = await supabase
-                    .from('themes')
-                    .select('*')
-                    .eq('is_active', true)
-                    .maybeSingle();
+        // --- 5. 声音系统 (AudioContext) ---
+        let analyser, dataArray, audioContext;
+        const btn = document.getElementById('sound-btn');
 
-                if (error || !data) throw new Error("DB Fetch Error");
+        async function initAudio() {
+            // 必须在用户点击后创建 AudioContext
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const audio = new Audio();
+            audio.crossOrigin = "anonymous";
+            // 经典的圣诞背景音乐
+            audio.src = "https://actions.google.com/sounds/v1/holidays/deck_the_halls.ogg"; 
+            audio.loop = true;
 
-                debugEl.innerText = "";
-                titleEl.innerText = data.name;
-                createTree(data.config);
+            const source = audioContext.createMediaElementSource(audio);
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+            
+            await audio.play();
+            btn.innerText = "🔊 音乐已开启 (鼠标划过树木)";
+            btn.style.opacity = 0.5;
+        }
 
-            } catch (err) {
-                console.warn(err);
-                debugEl.innerText = "Offline Mode";
-                titleEl.innerText = fallbackConfig.name;
-                createTree(fallbackConfig.config);
+        btn.addEventListener('click', () => {
+            if (!audioContext) {
+                initAudio().catch(e => {
+                    btn.innerText = "❌ 播放失败: " + e.message;
+                });
             }
-            loadingEl.style.opacity = 0;
-        }
+        });
 
+        // --- 6. 渲染循环 ---
         function animate() {
             requestAnimationFrame(animate);
-            controls.update();
-            const time = Date.now() * 0.001;
             
-            if (treeSystem) {
-                // 更新 Shader 时间变量
-                treeSystem.material.uniforms.time.value = time;
-                // 缓慢自转
-                treeSystem.rotation.y = time * 0.1; 
+            const time = performance.now() * 0.001;
+            
+            // 更新 Shader 参数
+            tree.material.uniforms.uTime.value = time;
+            tree.material.uniforms.uMouse.value = target3D; // 传入转换后的鼠标3D坐标
+
+            // 音频响应
+            if (analyser) {
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                analyser.getByteFrequencyData(dataArray);
+                // 取低频部分的平均值作为震动强度
+                const avg = dataArray.slice(0, 30).reduce((a, b) => a + b, 0) / 30;
+                // 归一化到 0 - 1
+                tree.material.uniforms.uAudio.value = THREE.MathUtils.lerp(tree.material.uniforms.uAudio.value, avg / 128, 0.1);
             }
-            
+
             renderer.render(scene, camera);
         }
 
+        animate();
+
+        // 窗口自适应
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        initEngine();
-        animate();
     </script>
 </body>
 </html>
