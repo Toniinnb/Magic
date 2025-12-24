@@ -4,56 +4,95 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Magic Holiday Tree</title>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=Noto+Serif+SC:wght@500&display=swap" rel="stylesheet">
+    
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000000; font-family: sans-serif; }
-        /* 这里的背景色 #000000 现在可以透出来的了 */
+        body { margin: 0; overflow: hidden; background-color: #000000; font-family: 'Noto Serif SC', serif; }
         
         #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         
-        /* UI 层 */
+        /* === UI 层优化 === */
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 10; pointer-events: none;
+            z-index: 10; pointer-events: none; /* 让鼠标穿透去玩树 */
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center;
         }
-        #wish-text {
-            position: absolute; top: 10%; width: 100%;
-            text-align: center; color: rgba(255,255,255,0.9);
-            font-size: 2rem; font-weight: 300; letter-spacing: 2px;
-            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+
+        /* 1. 祝福语 (卡片式设计) */
+        #wish-card {
+            margin-top: 15%; /* 在树的上方一点，或者视情况调整 */
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.05); /* 极淡的背景 */
+            backdrop-filter: blur(4px); /* 磨砂玻璃感 */
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            opacity: 0; animation: fadeIn 2s forwards 0.5s; /* 进场渐变 */
         }
         
-        /* 右下角加号按钮 */
-        #create-btn {
-            position: absolute; bottom: 30px; right: 30px;
-            width: 50px; height: 50px; border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.3);
-            color: white; font-size: 30px; line-height: 48px; text-align: center;
-            cursor: pointer; pointer-events: auto; backdrop-filter: blur(5px);
-            transition: all 0.3s;
+        #wish-text {
+            color: #ffecd1; /* 温暖的米金色 */
+            font-family: 'Dancing Script', cursive; /* 手写体 */
+            font-size: 2.5rem; 
+            margin: 0;
+            text-shadow: 0 0 15px rgba(255, 200, 100, 0.6);
         }
-        #create-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.1) rotate(90deg); }
 
-        /* 弹窗样式 */
+        /* 2. 底部按钮区 */
+        #bottom-controls {
+            margin-bottom: 40px;
+            pointer-events: auto; /* 按钮必须能点 */
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+        }
+
+        /* "我也要制作" 按钮 */
+        #create-btn {
+            background: transparent;
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 10px 24px;
+            font-size: 14px;
+            border-radius: 30px;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+        #create-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #fff;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+
+        /* 弹窗样式 (保持深色高级感) */
         #modal {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 85%; max-width: 380px;
-            background: rgba(15, 15, 20, 0.95); padding: 25px; border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.1); z-index: 100;
+            background: rgba(10, 10, 14, 0.95); padding: 30px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.15); z-index: 100;
             display: none; pointer-events: auto;
-            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
         }
-        .close-btn { position: absolute; top: 15px; right: 20px; color: #666; cursor: pointer; }
+        .close-btn { position: absolute; top: 20px; right: 20px; color: #666; cursor: pointer; font-size: 20px; }
         input, select, textarea {
-            width: 100%; margin-bottom: 12px; padding: 12px;
-            background: rgba(255,255,255,0.05); border: 1px solid #333; color: white;
-            border-radius: 8px; box-sizing: border-box; outline: none;
+            width: 100%; margin-bottom: 15px; padding: 12px;
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); 
+            color: #eee; border-radius: 8px; box-sizing: border-box; outline: none;
+            font-family: inherit;
         }
+        input:focus { border-color: #0070f3; background: rgba(0, 112, 243, 0.1); }
+        
         button.submit-btn {
-            width: 100%; padding: 12px; background: linear-gradient(45deg, #0070f3, #00c6ff);
-            color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
+            width: 100%; padding: 14px; 
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            color: #000; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
+            margin-top: 10px;
         }
 
-        #loading { position: fixed; bottom: 10px; left: 10px; color: rgba(255,255,255,0.3); font-size: 10px; z-index: 5; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.3); font-size: 12px; z-index: 5; }
     </style>
     
     <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -71,113 +110,101 @@
     <div id="canvas-container"></div>
 
     <div id="ui-layer">
-        <div id="wish-text"></div>
-        <div id="create-btn" onclick="ui.openModal()">+</div>
+        <div id="wish-card">
+            <h1 id="wish-text">Loading...</h1>
+        </div>
+        
+        <div id="bottom-controls">
+            <button id="create-btn" onclick="ui.openModal()">我也要制作</button>
+        </div>
     </div>
 
     <div id="modal">
         <div class="close-btn" onclick="ui.closeModal()">✕</div>
-        <h3 style="margin: 0 0 20px 0; color:white;">定制专属祝福 ✨</h3>
-        <input type="text" id="input-name" placeholder="对方名字 (英文/拼音)">
-        <input type="text" id="input-date" placeholder="日期 (格式 MM-DD)">
+        <h3 style="margin: 0 0 25px 0; color:#fff; text-align: center; font-weight: 300;">✨ 定制祝福 ✨</h3>
+        <input type="text" id="input-name" placeholder="对方的名字 (英文/拼音)">
+        <input type="text" id="input-date" placeholder="日期 (MM-DD，如 12-25)">
         <select id="input-theme">
             <option value="1">🎄 经典圣诞树</option>
-            <option value="2">🏮 节日灯笼</option>
-            <option value="3">🎂 生日蛋糕</option>
-            <option value="4">💖 浪漫爱心</option>
+            <option value="2">🏮 节日红灯笼</option>
+            <option value="3">🎂 生日大蛋糕</option>
+            <option value="4">💖 浪漫粉爱心</option>
         </select>
-        <textarea id="input-wish" rows="2" placeholder="写一句祝福的话..."></textarea>
-        <button class="submit-btn" onclick="ui.submitForm()">生成链接</button>
-        <div id="result-link" style="margin-top:15px; word-break: break-all; color: #00ff88; font-size: 13px;"></div>
+        <textarea id="input-wish" rows="2" placeholder="写一句祝福的话 (比如: 圣诞快乐!)"></textarea>
+        <button class="submit-btn" onclick="ui.submitForm()">生成专属链接</button>
+        <div id="result-link" style="margin-top:15px; word-break: break-all; color: #8ec5fc; font-size: 13px; text-align: center;"></div>
     </div>
 
-    <div id="loading">Connecting...</div>
+    <div id="loading">Connecting to Magic...</div>
 
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // === 1. 配置区 ===
         const CONFIG = {
             supabaseUrl: 'https://tcviiqrcgijnxgwmzjkq.supabase.co',
             supabaseKey: 'sb_publishable_VmvFMbF53RtgkovrckT_fQ_V9vh6yFS',
-            particleCount: 5000, 
+            particleCount: 5500, // 稍微增加一点粒子
             touchInteraction: true
         };
 
         const supabase = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
-        // 全局变量
         let scene, camera, renderer, particles, trailParticles;
-        let controls;
-        let audioCtx, analyser, dataArray;
+        let controls, audioCtx, analyser, dataArray;
         let isAudioInit = false;
         
-        // 交互状态
         let mouse = new THREE.Vector3(9999, 9999, 0); 
         let raycaster = new THREE.Raycaster();
         let mouse2D = new THREE.Vector2();
 
-        // 核心数据容器
         let particleData = []; 
         let trailData = [];    
 
-        // 初始化
         init();
 
         async function init() {
-            // 1. Three.js 基础场景
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000000, 0.02); // 雾也改成黑色匹配背景
+            // 雾稍微淡一点，让火花更亮
+            scene.fog = new THREE.FogExp2(0x000000, 0.015); 
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 5, 25); 
+            camera.position.set(0, 6, 28); 
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // alpha: true 很关键
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio > 2 ? 2 : window.devicePixelRatio);
+            renderer.setClearColor(0x000000, 0); // 关键：背景透明
             
-            // 【关键修复】设置背景全透明，让CSS的黑色透出来
-            renderer.setClearColor(0x000000, 0);
-
             container.appendChild(renderer.domElement);
 
-            // 【关键修改】锁定控制器，禁止用户拖动视角
+            // 锁定视角，只允许自动旋转
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
-            controls.autoRotate = true;     // 保留自动旋转
-            controls.autoRotateSpeed = 1.0; 
-            controls.enableRotate = false;  // ❌ 禁止手动旋转
-            controls.enableZoom = false;    // ❌ 禁止缩放
-            controls.enablePan = false;     // ❌ 禁止平移
+            controls.autoRotate = true;     
+            controls.autoRotateSpeed = 0.8; // 转慢一点更优雅
+            controls.enableRotate = false;  
+            controls.enableZoom = false;    
+            controls.enablePan = false;     
 
-            // 2. 创建粒子系统
             createParticleSystem();
-            
-            // 3. 创建火花拖尾
-            createTrailSystem();
+            createTrailSystem(); // 火花系统
 
-            // 4. 事件监听
             window.addEventListener('resize', onWindowResize);
             document.addEventListener('pointermove', onPointerMove);
             document.addEventListener('pointerdown', onFirstInteraction); 
 
-            // 5. 开始循环
             animate();
-
-            // 6. 加载数据
             await loadContentLogic();
         }
 
-        // === 隐形启动声音 ===
         function onFirstInteraction() {
             if (isAudioInit) return;
             initAudio(); 
             isAudioInit = true;
         }
 
-        // === 从数据库加载 ===
         async function loadContentLogic() {
             const params = new URLSearchParams(window.location.search);
             const toUser = params.get('to');
@@ -186,6 +213,7 @@
             let finalTheme = null;
             let finalWish = "";
 
+            // 1. 查私人定制
             if (toUser) {
                 const { data } = await supabase.from('private_events').select('*, themes(*)').eq('user_key', toUser);
                 if (data && data.length > 0) {
@@ -195,6 +223,7 @@
                 }
             }
 
+            // 2. 查公共节日
             if (!finalTheme) {
                 const { data } = await supabase.from('public_holidays').select('*, themes(*)').lte('start_date', today).gte('end_date', today);
                 if (data && data.length > 0) {
@@ -203,6 +232,7 @@
                 }
             }
 
+            // 3. 默认
             if (!finalTheme) {
                 finalTheme = { model_type: 'tree', particle_color: '#00ff00' }; 
                 finalWish = "Merry Christmas";
@@ -212,6 +242,7 @@
         }
 
         function applyTheme(theme, wish) {
+            // 更新 UI，这里确实是从 DB 获取的
             document.getElementById('wish-text').innerText = wish;
             document.getElementById('loading').style.display = 'none';
             generateShape(theme.model_type || 'tree', theme.particle_color);
@@ -227,7 +258,7 @@
             geometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
 
             const material = new THREE.PointsMaterial({
-                size: 0.4,
+                size: 0.35,
                 vertexColors: true,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
@@ -248,9 +279,9 @@
             }
         }
 
-        // === 拖尾系统 ===
+        // === 升级版：火花拖尾系统 ===
         function createTrailSystem() {
-            const trailCount = 300;
+            const trailCount = 600; // 增加火花数量
             const geometry = new THREE.BufferGeometry();
             const positions = new Float32Array(trailCount * 3);
             const colors = new Float32Array(trailCount * 3);
@@ -260,6 +291,7 @@
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
             geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
+            // 火花 Shader 增强亮度
             const material = new THREE.ShaderMaterial({
                 uniforms: {
                     pointTexture: { value: createCircleTexture() }
@@ -300,7 +332,6 @@
             }
         }
 
-        // === 形状生成 ===
         function generateShape(type, colorHex) {
             const count = CONFIG.particleCount;
             const positions = particles.geometry.attributes.position.array;
@@ -314,16 +345,15 @@
                 if (type === 'tree') {
                     const p = i / count; 
                     const angle = i * 0.1; 
-                    const radius = (1 - p) * 8; 
-                    const height = p * 20 - 10; 
-                    const jitter = 0.5;
-                    x = Math.cos(angle) * radius + (Math.random()-0.5)*jitter;
-                    z = Math.sin(angle) * radius + (Math.random()-0.5)*jitter;
+                    const radius = (1 - p) * 9; 
+                    const height = p * 22 - 11; 
+                    x = Math.cos(angle) * radius + (Math.random()-0.5)*0.5;
+                    z = Math.sin(angle) * radius + (Math.random()-0.5)*0.5;
                     y = height;
                 } else if (type === 'lantern') {
                     const phi = Math.acos(-1 + (2 * i) / count);
                     const theta = Math.sqrt(count * Math.PI) * phi;
-                    const r = 7;
+                    const r = 8;
                     x = r * Math.cos(theta) * Math.sin(phi);
                     y = r * Math.sin(theta) * Math.sin(phi);
                     z = r * Math.cos(phi);
@@ -337,7 +367,7 @@
 
                 data.home.set(x, y, z); 
 
-                if (Math.random() < 0.1) {
+                if (Math.random() < 0.15) { // 增加装饰物比例
                     const rand = Math.random();
                     if(rand < 0.33) data.baseColor.set('#ff0055');
                     else if(rand < 0.66) data.baseColor.set('#ffd700');
@@ -345,7 +375,7 @@
                     data.isOrnament = true;
                 } else {
                     data.baseColor.copy(baseColorObj);
-                    data.baseColor.multiplyScalar(0.5 + Math.random()*0.5); 
+                    data.baseColor.multiplyScalar(0.4 + Math.random()*0.6); 
                     data.isOrnament = false;
                 }
                 
@@ -357,11 +387,10 @@
             particles.geometry.attributes.color.needsUpdate = true;
         }
 
-        // === 动画循环 ===
         function animate() {
             requestAnimationFrame(animate);
 
-            // 音频分析
+            // Audio Logic
             let bass = 0, treble = 0;
             if (analyser && isAudioInit) {
                 analyser.getByteFrequencyData(dataArray);
@@ -374,48 +403,46 @@
             const positions = particles.geometry.attributes.position.array;
             const colors = particles.geometry.attributes.color.array;
             
-            // 获取鼠标在3D空间的位置（用于磁场）
+            // Mouse Raycasting
             raycaster.setFromCamera(mouse2D, camera);
             let mouse3D = new THREE.Vector3();
-            // 假设交互平面在距离相机20的位置
-            raycaster.ray.at(20, mouse3D); 
+            raycaster.ray.at(22, mouse3D); // 投射到树的前方一点
 
             for (let i = 0; i < CONFIG.particleCount; i++) {
                 const data = particleData[i];
                 const ix = i * 3;
                 
-                // 1. 基础运动 + 音乐律动
+                // 1. Bass Pulse
                 let tx = data.home.x * (1 + bass * 0.5);
                 let ty = data.home.y * (1 + bass * 0.2); 
                 let tz = data.home.z * (1 + bass * 0.5);
 
-                // 2. 磁场斥力 (交互核心)
+                // 2. Magnetic Repulsion (磁场斥力)
                 if (mouse.z < 9000) { 
                     const dx = positions[ix] - mouse3D.x;
                     const dy = positions[ix+1] - mouse3D.y;
                     const dz = positions[ix+2] - mouse3D.z;
                     const distSq = dx*dx + dy*dy + dz*dz;
                     
-                    if (distSq < 50) { 
+                    if (distSq < 60) { // 增大磁场范围
                         const dist = Math.sqrt(distSq);
-                        const force = (50 - distSq) / 50; 
-                        tx += (dx / dist) * force * 5;
-                        ty += (dy / dist) * force * 5;
-                        tz += (dz / dist) * force * 5;
-                        
-                        // 触发火花
-                        if(Math.random() < 0.02) spawnTrail(positions[ix], positions[ix+1], positions[ix+2]);
+                        const force = (60 - distSq) / 60; 
+                        // 斥力稍微柔和一点
+                        tx += (dx / dist) * force * 4;
+                        ty += (dy / dist) * force * 4;
+                        tz += (dz / dist) * force * 4;
                     }
                 }
 
-                // 3. 缓动
+                // 3. Easing
                 positions[ix] += (tx - positions[ix]) * 0.1;
                 positions[ix+1] += (ty - positions[ix+1]) * 0.1;
                 positions[ix+2] += (tz - positions[ix+2]) * 0.1;
 
-                // 4. 颜色
-                if (data.isOrnament && treble > 0.4) {
-                    colors[ix] = 1; colors[ix+1] = 1; colors[ix+2] = 1; 
+                // 4. Color Blink
+                if (data.isOrnament && treble > 0.35) {
+                    // 高音时更亮
+                    colors[ix] = 1; colors[ix+1] = 1; colors[ix+2] = 0.8; 
                 } else {
                     colors[ix] += (data.baseColor.r - colors[ix]) * 0.1;
                     colors[ix+1] += (data.baseColor.g - colors[ix+1]) * 0.1;
@@ -425,13 +452,14 @@
             particles.geometry.attributes.position.needsUpdate = true;
             particles.geometry.attributes.color.needsUpdate = true;
 
+            // Update Sparkles
             updateTrails(mouse3D);
 
-            controls.update(); // 此时只负责自动旋转，不响应鼠标
+            controls.update(); 
             renderer.render(scene, camera);
         }
 
-        // === 拖尾特效 ===
+        // === 增强版：发射火花 ===
         function spawnTrail(x, y, z) {
             const idx = trailData.findIndex(t => !t.active);
             if (idx === -1) return; 
@@ -439,10 +467,11 @@
             const t = trailData[idx];
             t.active = true;
             t.life = 1.0;
+            // 火花随机向四周喷射
             t.velocity.set(
-                (Math.random() - 0.5) * 0.5,
-                (Math.random() - 0.5) * 0.5,
-                (Math.random() - 0.5) * 0.5
+                (Math.random() - 0.5) * 0.8,
+                (Math.random() - 0.5) * 0.8,
+                (Math.random() - 0.5) * 0.8
             );
             
             const positions = trailParticles.geometry.attributes.position.array;
@@ -451,21 +480,23 @@
             positions[idx*3+2] = z;
 
             const colors = trailParticles.geometry.attributes.color.array;
-            colors[idx*3] = 1; 
-            colors[idx*3+1] = Math.random() * 0.5 + 0.5; 
-            colors[idx*3+2] = 0;
+            // 金色火花
+            colors[idx*3] = 1.0; 
+            colors[idx*3+1] = 0.8 + Math.random()*0.2; 
+            colors[idx*3+2] = 0.2;
             
             const sizes = trailParticles.geometry.attributes.size.array;
-            sizes[idx] = Math.random() * 2 + 1;
+            sizes[idx] = Math.random() * 3 + 2; // 大一点
         }
 
         function updateTrails(mousePos) {
             if (mouse.z < 9000) {
-                for(let k=0; k<3; k++) {
+                // 每帧发射更多火花，形成连贯线条
+                for(let k=0; k<5; k++) {
                     spawnTrail(
-                        mousePos.x + (Math.random()-0.5), 
-                        mousePos.y + (Math.random()-0.5), 
-                        mousePos.z + (Math.random()-0.5)
+                        mousePos.x + (Math.random()-0.5)*0.5, 
+                        mousePos.y + (Math.random()-0.5)*0.5, 
+                        mousePos.z + (Math.random()-0.5)*0.5
                     );
                 }
             }
@@ -477,16 +508,20 @@
                 const t = trailData[i];
                 if (!t.active) continue;
 
-                t.life -= 0.03; 
+                t.life -= 0.025; // 衰减慢一点，拖尾更长
                 if (t.life <= 0) {
                     t.active = false;
                     positions[i*3] = 9999; 
                     continue;
                 }
+                // 加一点重力下坠感
+                t.velocity.y -= 0.01;
+                
                 positions[i*3] += t.velocity.x;
                 positions[i*3+1] += t.velocity.y;
                 positions[i*3+2] += t.velocity.z;
-                sizes[i] = t.life * 5;
+                
+                sizes[i] = t.life * 4;
             }
             trailParticles.geometry.attributes.position.needsUpdate = true;
             trailParticles.geometry.attributes.size.needsUpdate = true;
@@ -510,8 +545,7 @@
             const context = canvas.getContext('2d');
             const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
             gradient.addColorStop(0, 'rgba(255,255,255,1)');
-            gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
-            gradient.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+            gradient.addColorStop(0.3, 'rgba(255,255,255,0.7)');
             gradient.addColorStop(1, 'rgba(0,0,0,0)');
             context.fillStyle = gradient;
             context.fillRect(0,0,32,32);
@@ -548,18 +582,18 @@
                 const date = document.getElementById('input-date').value;
                 const themeId = document.getElementById('input-theme').value;
                 const wish = document.getElementById('input-wish').value;
-                if(!name || !date) { alert('请填写名字和日期'); return; }
+                if(!name || !date) { alert('名字和日期是必填的哦'); return; }
                 
-                document.querySelector('.submit-btn').innerText = '生成中...';
+                document.querySelector('.submit-btn').innerText = '正在施法中...';
                 const { error } = await supabase.from('private_events').insert({
                     user_key: name, event_date: date, theme_id: parseInt(themeId), custom_message: wish
                 });
-                if(error) alert('Error: ' + error.message);
+                if(error) alert('哎呀出错了: ' + error.message);
                 else {
                     const link = `${window.location.origin}${window.location.pathname}?to=${name}`;
-                    document.getElementById('result-link').innerHTML = `生成成功! <br> <a href="${link}" style="color:#00ff88">${link}</a>`;
+                    document.getElementById('result-link').innerHTML = `制作成功! <br> <a href="${link}" style="color:#8ec5fc">${link}</a> <br> (复制发给TA吧)`;
                 }
-                document.querySelector('.submit-btn').innerText = '生成链接';
+                document.querySelector('.submit-btn').innerText = '生成专属链接';
             }
         }
     </script>
