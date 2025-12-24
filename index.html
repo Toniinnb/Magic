@@ -3,24 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>沉浸式节日祝福引擎 (Stable)</title>
+    <title>沉浸式节日祝福引擎 (Organic Ver.)</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; color: white; font-family: sans-serif; }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; transition: opacity 0.5s; font-weight: 300; letter-spacing: 1px; }
-        #ui-layer { position: absolute; bottom: 30px; left: 0; width: 100%; text-align: center; pointer-events: none; z-index: 10; }
-        .btn { pointer-events: auto; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 12px 24px; border-radius: 30px; cursor: pointer; backdrop-filter: blur(10px); transition: 0.3s; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
-        .btn:hover { background: rgba(255,255,255,0.25); transform: scale(1.05); }
-        #debug-info { position: absolute; top: 10px; left: 10px; color: rgba(255,255,255,0.3); font-size: 10px; pointer-events: none; }
+        body { margin: 0; overflow: hidden; background-color: #020202; color: white; font-family: sans-serif; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; transition: opacity 0.5s; font-weight: 300; letter-spacing: 2px; text-transform: uppercase; }
+        #ui-layer { position: absolute; bottom: 40px; left: 0; width: 100%; text-align: center; pointer-events: none; z-index: 10; }
+        .btn { pointer-events: auto; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); padding: 12px 30px; border-radius: 50px; cursor: pointer; backdrop-filter: blur(10px); transition: 0.4s; font-size: 12px; letter-spacing: 2px; }
+        .btn:hover { background: rgba(255,255,255,0.2); color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.1); }
+        #debug-info { position: absolute; top: 10px; left: 10px; color: rgba(255,255,255,0.2); font-size: 10px; pointer-events: none; font-family: monospace; }
     </style>
 </head>
 <body>
 
-    <div id="loading">正在连接节日引擎...</div>
+    <div id="loading">Planting the Tree...</div>
     <div id="debug-info"></div>
     
     <div id="ui-layer">
-        <h1 id="theme-title" style="margin-bottom: 20px; font-weight: 200; font-size: 1.5rem; text-shadow: 0 0 20px rgba(255,215,0,0.5);">...</h1>
-        <button id="sound-btn" class="btn">🔊 开启声音互动</button>
+        <h1 id="theme-title" style="margin-bottom: 10px; font-weight: 100; font-size: 1.2rem; opacity: 0.9;">...</h1>
+        <button id="sound-btn" class="btn">🔊 开启氛围</button>
     </div>
 
     <script type="importmap">
@@ -38,7 +38,7 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { createClient } from '@supabase/supabase-js';
 
-        // --- 1. 稳定的配置 ---
+        // --- 配置区 ---
         const SUPABASE_URL = 'https://tcviiqrcgijnxgwmzjkq.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_VmvFMbF53RtgkovrckT_fQ_V9vh6yFS';
         
@@ -46,12 +46,13 @@
         const titleEl = document.getElementById('theme-title');
         const loadingEl = document.getElementById('loading');
 
-        // --- 2. 场景初始化 ---
+        // --- 场景 ---
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x050505, 0.02);
+        // 更加深邃的背景雾，模拟夜间森林
+        scene.fog = new THREE.FogExp2(0x020202, 0.035);
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 2, 12);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 16); // 视角放平，看全貌
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -61,118 +62,189 @@
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.8;
-        controls.maxDistance = 20;
-        controls.minDistance = 5;
+        controls.autoRotateSpeed = 0.5;
+        controls.maxDistance = 25;
+        controls.minDistance = 2;
 
-        // --- 3. 粒子树生成逻辑 ---
-        let particles;
+        // --- 核心修改：有机树生成算法 ---
+        let treeSystem;
+
         function createTree(config) {
-            if(particles) scene.remove(particles);
+            if(treeSystem) scene.remove(treeSystem);
 
-            const count = config.visual.particleCount || 2500;
-            const color1 = new THREE.Color(config.visual.primaryColor || '#FFD700');
-            const color2 = new THREE.Color(config.visual.secondaryColor || '#FF0000');
+            // 读取配置或使用默认值
+            const count = config.visual.particleCount || 4000; // 增加粒子数以获得茂密感
+            const primaryHex = config.visual.primaryColor || '#2E8B57'; // 默认树叶绿
+            const secondaryHex = config.visual.secondaryColor || '#FFD700'; // 默认灯光金
+            
+            const colorLeaf = new THREE.Color(primaryHex); 
+            const colorLight = new THREE.Color(secondaryHex);
 
             const geometry = new THREE.BufferGeometry();
             const positions = [];
             const colors = [];
             const sizes = [];
+            const randoms = []; // 用于动画的随机相位
 
-            for (let i = 0; i < count; i++) {
-                const iNorm = i / count; 
-                const angle = i * 0.15; 
-                
-                // 圣诞树形态：下宽上窄
-                const height = (iNorm * 12) - 6; 
-                const radius = (1 - iNorm) * 4; 
-                
-                const spiralX = Math.cos(angle) * radius;
-                const spiralZ = Math.sin(angle) * radius;
+            // 算法：分层堆叠 + 枝叶噪声
+            const layers = 18; // 树的层数
+            const particlesPerLayer = Math.floor(count / layers);
 
-                // 随机扰动 (Jitter)
-                const jitter = 0.3;
-                positions.push(
-                    spiralX + (Math.random() - 0.5) * jitter, 
-                    height + (Math.random() - 0.5) * jitter, 
-                    spiralZ + (Math.random() - 0.5) * jitter
-                );
-
-                const mixedColor = color1.clone().lerp(color2, Math.random());
-                colors.push(mixedColor.r, mixedColor.g, mixedColor.b);
+            for (let l = 0; l < layers; l++) {
+                // 当前层的高度进度 (0 = 顶端, 1 = 底端)
+                const t = l / (layers - 1); 
+                const layerY = 6 - (t * 12); // 从 +6 到 -6
                 
-                // 顶部粒子更小更密
-                sizes.push(Math.random() * 1.5); 
+                // 每一层的最大半径 (上面窄，下面宽，呈指数曲线)
+                const maxRadius = 0.2 + (t * t * 5.5); 
+
+                for (let i = 0; i < particlesPerLayer; i++) {
+                    // 在这一层里生成粒子
+                    // 关键：不均匀分布。角度要聚拢，模拟树枝
+                    const angleBase = (Math.PI * 2 * i) / particlesPerLayer;
+                    // 加入一点正弦波扰动，让每一层像花瓣一样有凹凸
+                    const branchNoise = Math.sin(angleBase * 5); // 5个主分叉
+                    
+                    const r = Math.random() * maxRadius * (0.8 + 0.2 * branchNoise);
+                    const angle = Math.random() * Math.PI * 2;
+
+                    // 最终位置
+                    const x = Math.cos(angle) * r;
+                    const z = Math.sin(angle) * r;
+                    // Y轴增加随机厚度，不要像纸片一样薄
+                    const y = layerY - (Math.random() * 0.8) + (Math.abs(x)*0.2); // 树枝自然下垂效果
+
+                    positions.push(x, y, z);
+                    randoms.push(Math.random());
+
+                    // 颜色分配：内部是暗绿，边缘是亮色/灯光
+                    const distFromCenter = Math.sqrt(x*x + z*z) / maxRadius;
+                    
+                    if (Math.random() > 0.92 && distFromCenter > 0.5) {
+                        // 8% 的概率生成“彩灯”，且只挂在树梢外部
+                        colors.push(colorLight.r, colorLight.g, colorLight.b);
+                        sizes.push(0.3 + Math.random() * 0.3); // 灯大一点
+                    } else {
+                        // 树叶粒子
+                        // 越靠外越亮，越靠里越暗（模拟光照遮蔽）
+                        const leafColor = colorLeaf.clone().multiplyScalar(0.5 + distFromCenter * 0.5);
+                        colors.push(leafColor.r, leafColor.g, leafColor.b);
+                        sizes.push(0.1 + Math.random() * 0.1); // 叶子小一点
+                    }
+                }
             }
+
+            // 顶部的星星 (额外加一个大点)
+            positions.push(0, 6.2, 0);
+            colors.push(1, 1, 0.8); // 亮白金
+            sizes.push(0.8);
+            randoms.push(0);
 
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
             geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
             geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+            geometry.setAttribute('aRandom', new THREE.Float32BufferAttribute(randoms, 1));
 
-            // 自定义材质（让粒子圆润发光）
-            const material = new THREE.PointsMaterial({
-                size: 0.15,
-                vertexColors: true,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false,
+            // 材质
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    pointTexture: { value: new THREE.TextureLoader().load('https://assets.codepen.io/127738/dotTexture.png') } // 使用一个简单的辉光贴图
+                },
+                vertexShader: `
+                    attribute float size;
+                    attribute float aRandom;
+                    attribute vec3 color;
+                    varying vec3 vColor;
+                    uniform float time;
+                    void main() {
+                        vColor = color;
+                        vec3 pos = position;
+                        
+                        // 风吹效果：高度越高，晃动越大
+                        float windStrength = max(0.0, pos.y + 5.0) * 0.1;
+                        pos.x += sin(time * 1.5 + pos.y) * windStrength * 0.2;
+                        pos.z += cos(time * 1.2 + pos.y) * windStrength * 0.2;
+
+                        // 呼吸律动
+                        if(color.r > 0.8) { // 如果是灯光（红色分量高）
+                            float blink = sin(time * 3.0 + aRandom * 10.0);
+                            pos *= 1.0 + (blink * 0.02); // 轻微缩放
+                        }
+
+                        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                        gl_PointSize = size * (300.0 / -mvPosition.z);
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vColor;
+                    void main() {
+                        // 简单的圆形辉光绘制 (无需外部贴图也能跑，但为了效果这里模拟一下)
+                        float d = distance(gl_PointCoord, vec2(0.5));
+                        if(d > 0.5) discard;
+                        
+                        // 边缘柔化
+                        float alpha = 1.0 - smoothstep(0.3, 0.5, d);
+                        gl_FragColor = vec4(vColor, alpha);
+                    }
+                `,
                 transparent: true,
-                opacity: 0.9
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
             });
 
-            particles = new THREE.Points(geometry, material);
-            scene.add(particles);
+            treeSystem = new THREE.Points(geometry, material);
+            scene.add(treeSystem);
         }
 
-        // --- 4. 强壮的数据加载逻辑 ---
+        // --- 数据与逻辑 ---
         async function initEngine() {
-            // 默认兜底配置 (Fail-safe)
+            // 默认视觉配置 (冷杉绿 + 暖金)
             const fallbackConfig = {
-                name: "本地备份模式",
+                name: "默认：北欧冷杉",
                 config: {
-                    visual: { primaryColor: '#00ffaa', secondaryColor: '#ffffff', particleCount: 3000 }
+                    visual: { primaryColor: '#2E8B57', secondaryColor: '#FFD700', particleCount: 5000 }
                 }
             };
 
             try {
-                debugEl.innerText = "Connecting to DB...";
+                debugEl.innerText = "Connecting...";
                 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
                 
-                // 尝试读取数据库
                 const { data, error } = await supabase
                     .from('themes')
                     .select('*')
                     .eq('is_active', true)
-                    .maybeSingle(); // 使用 maybeSingle 避免 406 错误
+                    .maybeSingle();
 
-                if (error) throw error;
-                if (!data) throw new Error("没有找到激活的主题");
+                if (error || !data) throw new Error("DB Fetch Error");
 
-                // 成功！
-                debugEl.innerText = "Connected: " + data.name;
+                debugEl.innerText = "";
                 titleEl.innerText = data.name;
                 createTree(data.config);
 
             } catch (err) {
-                // 失败处理
-                console.warn("引擎降级运行:", err);
-                debugEl.innerText = "Offline Mode: " + err.message;
+                console.warn(err);
+                debugEl.innerText = "Offline Mode";
                 titleEl.innerText = fallbackConfig.name;
                 createTree(fallbackConfig.config);
             }
-            
             loadingEl.style.opacity = 0;
         }
 
-        // --- 5. 动画循环 ---
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
-            if (particles) {
-                const time = Date.now() * 0.001;
-                particles.rotation.y = time * 0.1;
-                // 简单的闪烁效果
-                particles.material.size = 0.15 + Math.sin(time * 5) * 0.05;
+            const time = Date.now() * 0.001;
+            
+            if (treeSystem) {
+                // 更新 Shader 时间变量
+                treeSystem.material.uniforms.time.value = time;
+                // 缓慢自转
+                treeSystem.rotation.y = time * 0.1; 
             }
+            
             renderer.render(scene, camera);
         }
 
