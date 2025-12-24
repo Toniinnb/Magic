@@ -3,90 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Magic Holiday</title>
+    <title>Magic Holiday Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Noto+Serif+SC:wght@500&display=swap" rel="stylesheet">
     
     <style>
+        /* === 视觉基础 === */
         body { margin: 0; overflow: hidden; background-color: #000000; font-family: 'Noto Serif SC', serif; }
         #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         
-        /* === UI 层布局 === */
+        /* === UI 布局 (底部沉浸式) === */
         #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 10; pointer-events: none;
-            display: flex; flex-direction: column; 
-            justify-content: flex-end; /* 内容沉底 */
-            align-items: center;
+            position: absolute; bottom: 0; left: 0; width: 100%; 
             padding-bottom: 40px; /* 底部留白 */
+            z-index: 10; pointer-events: none; /* 穿透 */
+            display: flex; flex-direction: column; 
+            align-items: center; justify-content: flex-end;
+            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%); /* 底部渐变遮罩，防止文字看不清 */
+            height: 40%; /* 遮罩高度 */
         }
 
-        /* 1. 祝福语 (移到底部，变小精致) */
+        /* 祝福卡片 */
         #wish-card {
-            margin-bottom: 20px; /* 在按钮上方 */
-            padding: 10px 25px;
-            background: rgba(0, 0, 0, 0.3); /* 深色背景更显字 */
-            backdrop-filter: blur(4px);
-            border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            margin-bottom: 25px;
+            padding: 12px 30px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(8px); /* 高级磨砂 */
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             text-align: center;
-            opacity: 0; animation: fadeIn 2s forwards 0.5s;
-            max-width: 80%;
+            opacity: 0; animation: fadeInUp 1.5s ease-out forwards 0.5s;
+            max-width: 90%;
         }
         
         #wish-text {
-            color: #ffecd1;
+            color: #ffeebb; /* 香槟金 */
             font-family: 'Dancing Script', cursive; 
-            font-size: 1.8rem; /* 尺寸调小 */
-            margin: 0;
-            line-height: 1.2;
-            text-shadow: 0 0 10px rgba(255, 200, 100, 0.5);
+            font-size: 2rem; 
+            margin: 0; line-height: 1.2;
+            text-shadow: 0 0 15px rgba(255, 200, 80, 0.6);
         }
 
-        /* 2. 底部按钮 */
+        /* 制作按钮 (幽灵按钮风格) */
         #create-btn {
-            background: rgba(255, 255, 255, 0.1);
-            color: rgba(255, 255, 255, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 8px 20px;
-            font-size: 12px;
-            border-radius: 20px;
-            cursor: pointer;
-            pointer-events: auto;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 10px 24px;
+            font-size: 13px; border-radius: 30px;
+            cursor: pointer; pointer-events: auto;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            text-transform: uppercase; letter-spacing: 2px;
         }
         #create-btn:hover {
             background: rgba(255, 255, 255, 0.2);
             color: #fff; border-color: #fff;
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
         }
 
-        /* 弹窗样式 */
+        /* === 弹窗 (深色拟态) === */
         #modal {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 85%; max-width: 350px;
-            background: rgba(18, 18, 24, 0.95); padding: 25px; border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.1); z-index: 100;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+            width: 85%; max-width: 360px;
+            background: #111; 
+            padding: 30px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.15); z-index: 100;
             display: none; pointer-events: auto;
-            box-shadow: 0 0 60px rgba(0,0,0,1);
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            opacity: 0; transition: all 0.3s;
         }
-        .close-btn { position: absolute; top: 15px; right: 20px; color: #666; cursor: pointer; }
+        #modal.active { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         
-        /* 表单元素 */
-        label { color: #888; font-size: 12px; display: block; margin-bottom: 5px; margin-top: 10px; }
+        .close-btn { position: absolute; top: 20px; right: 20px; color: #666; cursor: pointer; font-size: 20px; }
+        
+        label { color: #888; font-size: 12px; display: block; margin: 15px 0 5px; letter-spacing: 1px; }
         input, select, textarea {
-            width: 100%; padding: 10px; margin-bottom: 5px;
-            background: rgba(255,255,255,0.05); border: 1px solid #333; 
-            color: #ddd; border-radius: 6px; box-sizing: border-box; outline: none;
+            width: 100%; padding: 12px; 
+            background: #1a1a1a; border: 1px solid #333; 
+            color: #eee; border-radius: 8px; box-sizing: border-box; outline: none;
+            transition: border-color 0.3s;
         }
-        button.submit-btn {
-            width: 100%; padding: 12px; margin-top: 15px;
-            background: linear-gradient(90deg, #ff0055, #ffcc00);
-            color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
-        }
+        input:focus, select:focus, textarea:focus { border-color: #ffcc00; }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.2); font-size: 12px; z-index: 5; }
+        button.submit-btn {
+            width: 100%; padding: 14px; margin-top: 25px;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+            color: #333; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
+            font-size: 16px;
+        }
+
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.3); font-size: 12px; z-index: 5; }
+        
+        .required-mark { color: #ff4466; margin-left: 5px; }
     </style>
     
     <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -99,432 +108,536 @@
     <div id="canvas-container"></div>
 
     <div id="ui-layer">
-        <div id="wish-card"><h1 id="wish-text">Loading Magic...</h1></div>
+        <div id="wish-card"><h1 id="wish-text">Connecting...</h1></div>
         <button id="create-btn" onclick="ui.openModal()">我也要制作</button>
     </div>
 
     <div id="modal">
         <div class="close-btn" onclick="ui.closeModal()">✕</div>
-        <h3 style="margin: 0; color:#fff; text-align: center; font-weight: 300;">✨ 定制祝福 ✨</h3>
+        <h3 style="margin: 0; color:#fff; text-align: center; font-weight: 300; letter-spacing: 2px;">定制祝福</h3>
         
-        <label>对方名字 (必填)</label>
-        <input type="text" id="input-name" placeholder="例如: Alice">
+        <label>对方名字 <span class="required-mark">*</span></label>
+        <input type="text" id="input-name" placeholder="Name">
         
         <label>选择主题</label>
         <select id="input-theme" onchange="ui.onThemeChange()">
-            <option value="1">🎄 圣诞树</option>
-            <option value="2">🏮 春节灯笼</option>
-            <option value="3">🎂 生日蛋糕</option>
-            <option value="4">💖 浪漫爱心</option>
+            <option value="1">🎄 经典圣诞树</option>
+            <option value="2">🏮 春节红灯笼</option>
+            <option value="3">🎂 生日大蛋糕</option>
+            <option value="4">💖 浪漫粉爱心</option>
         </select>
 
         <label id="label-date">日期 (如果是生日则必填)</label>
-        <input type="text" id="input-date" placeholder="MM-DD (例如 05-20)">
+        <input type="text" id="input-date" placeholder="MM-DD (如 12-25)">
         
         <label>祝福语 (留空则随机)</label>
-        <textarea id="input-wish" rows="2" placeholder="写下你的专属祝福..."></textarea>
+        <textarea id="input-wish" rows="2" placeholder="写一句暖心的话..."></textarea>
         
-        <button class="submit-btn" onclick="ui.submitForm()">生成链接</button>
+        <button class="submit-btn" onclick="ui.submitForm()">生成专属链接</button>
         <div id="result-link" style="margin-top:15px; word-break: break-all; color: #ffcc00; font-size: 12px; text-align: center;"></div>
     </div>
 
-    <div id="loading">Connecting...</div>
+    <div id="loading">...</div>
 
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // === 你的配置 ===
+        // === 全局配置 ===
         const CONFIG = {
             supabaseUrl: 'https://tcviiqrcgijnxgwmzjkq.supabase.co',
             supabaseKey: 'sb_publishable_VmvFMbF53RtgkovrckT_fQ_V9vh6yFS',
-            particleCount: 6000
+            particleCount: 7000, // 增加粒子密度
+            sparkCount: 500      // 火花池大小
         };
 
         const supabase = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
-        let scene, camera, renderer, particles, trailParticles;
+        let scene, camera, renderer, particles, sparkParticles;
         let controls, audioCtx, analyser, dataArray;
         let isAudioInit = false;
         
-        // 交互专用变量
+        // 交互专用
         let mouse = new THREE.Vector2();
         let raycaster = new THREE.Raycaster();
-        let interactionPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0); // 这里的 0 代表 Z=0 的平面
         let mouse3D = new THREE.Vector3();
-        let isTouching = false;
+        let planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0); 
+        let isInteracting = false;
+        let lastMouse3D = new THREE.Vector3(); // 用于计算鼠标移动速度
 
+        // 数据容器
         let particleData = []; 
-        let trailData = [];    
+        let sparkData = []; // 火花物理数据
 
         init();
 
         async function init() {
+            // 1. 初始化场景
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x000000, 0.02); 
+            scene.fog = new THREE.FogExp2(0x000000, 0.02); // 黑色雾气
 
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 6, 25); 
+            camera.position.set(0, 5, 25); 
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio > 2 ? 2 : window.devicePixelRatio);
-            renderer.setClearColor(0x000000, 0); 
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x000000, 0); // 确保透明
             container.appendChild(renderer.domElement);
 
-            // 锁定视角
+            // 2. 控制器 (锁定视角，仅允许自转)
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
             controls.autoRotate = true;     
             controls.autoRotateSpeed = 1.0; 
-            controls.enableRotate = false;  
+            controls.enableRotate = false; // 禁止用户乱动视角
             controls.enableZoom = false;    
             controls.enablePan = false;     
 
-            createParticleSystem();
-            createTrailSystem();
+            // 3. 创建系统
+            createMainParticles();
+            createPhysicsSparks(); // 物理火花系统
 
+            // 4. 事件
             window.addEventListener('resize', onWindowResize);
-            // 绑定所有交互事件
             document.addEventListener('mousemove', onMove);
             document.addEventListener('touchmove', onTouchMove, { passive: false });
-            document.addEventListener('pointerdown', onFirstInteraction); 
+            document.addEventListener('pointerdown', () => {
+                if (!isAudioInit) { initAudio(); isAudioInit = true; }
+            });
 
             animate();
             await loadContentLogic();
         }
 
-        function onFirstInteraction() {
-            if (isAudioInit) return;
-            initAudio(); 
-            isAudioInit = true;
-        }
-
+        // === 核心：读取数据库 ===
         async function loadContentLogic() {
             const params = new URLSearchParams(window.location.search);
             const toUser = params.get('to');
             const today = getFormattedDate();
 
-            let finalTheme = null;
-            let finalWish = "";
+            let finalTheme = null, finalWish = "";
 
+            // 优先查私人定制
             if (toUser) {
                 const { data } = await supabase.from('private_events').select('*, themes(*)').eq('user_key', toUser);
                 if (data && data.length > 0) {
-                    const event = data[0]; 
-                    finalTheme = event.themes;
-                    finalWish = event.custom_message || ""; // 私人没填就留空
+                    finalTheme = data[0].themes;
+                    finalWish = data[0].custom_message;
                 }
             }
-
+            // 其次查节日
             if (!finalTheme) {
                 const { data } = await supabase.from('public_holidays').select('*, themes(*)').lte('start_date', today).gte('end_date', today);
                 if (data && data.length > 0) {
                     finalTheme = data[0].themes;
-                    finalWish = data[0].wish_text || "";
+                    finalWish = data[0].wish_text;
                 }
             }
-
+            // 默认
             if (!finalTheme) {
-                finalTheme = { model_type: 'tree', particle_color: '#00ff00' }; 
+                finalTheme = { model_type: 'tree', particle_color: '#00ff00' };
                 finalWish = "Merry Christmas";
             }
 
-            applyTheme(finalTheme, finalWish);
-        }
-
-        function applyTheme(theme, wish) {
-            // === 随机祝福语逻辑 ===
-            // 如果wish里包含 "|", 则分割并随机取一个
-            let displayText = wish;
-            if (wish && wish.includes('|')) {
-                const options = wish.split('|');
-                displayText = options[Math.floor(Math.random() * options.length)];
+            // 处理多条祝福语逻辑 (| 分割)
+            if (finalWish && finalWish.includes('|')) {
+                const arr = finalWish.split('|');
+                finalWish = arr[Math.floor(Math.random() * arr.length)];
+            } else if (!finalWish) {
+                finalWish = "Best Wishes For You";
             }
-            if (!displayText) displayText = "Best Wishes";
 
-            document.getElementById('wish-text').innerText = displayText;
+            // 应用
+            document.getElementById('wish-text').innerText = finalWish;
             document.getElementById('loading').style.display = 'none';
-            generateShape(theme.model_type || 'tree', theme.particle_color);
+            generateShape(finalTheme.model_type || 'tree', themeToColor(finalTheme));
         }
 
-        // === 3D 粒子 ===
-        function createParticleSystem() {
+        function themeToColor(theme) { return theme.particle_color || '#00ff00'; }
+
+        // === 系统 1: 主体粒子 (树/灯笼) ===
+        function createMainParticles() {
             const geometry = new THREE.BufferGeometry();
-            const posArray = new Float32Array(CONFIG.particleCount * 3);
-            const colorArray = new Float32Array(CONFIG.particleCount * 3);
-            geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+            const pos = new Float32Array(CONFIG.particleCount * 3);
+            const col = new Float32Array(CONFIG.particleCount * 3);
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(col, 3));
+
             const material = new THREE.PointsMaterial({
                 size: 0.35, vertexColors: true, blending: THREE.AdditiveBlending,
-                depthWrite: false, transparent: true, opacity: 0.9,
-                map: createCircleTexture()
+                depthWrite: false, transparent: true, opacity: 0.8,
+                map: createGlowTexture()
             });
+
             particles = new THREE.Points(geometry, material);
             scene.add(particles);
-            for(let i=0; i<CONFIG.particleCount; i++) particleData.push({ home: new THREE.Vector3(), baseColor: new THREE.Color(), phase: Math.random()*Math.PI*2 });
+
+            // 初始化容器
+            for(let i=0; i<CONFIG.particleCount; i++) {
+                particleData.push({
+                    home: new THREE.Vector3(), // 目标位置
+                    baseColor: new THREE.Color(),
+                    velocity: new THREE.Vector3(),
+                    isOrnament: false
+                });
+            }
         }
 
-        // === 火花拖尾 (更亮更密集) ===
-        function createTrailSystem() {
-            const trailCount = 800;
+        // === 系统 2: 物理火花 (不再是贴图动画，而是真实的物理模拟) ===
+        function createPhysicsSparks() {
             const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(trailCount * 3);
-            const colors = new Float32Array(trailCount * 3);
-            const sizes = new Float32Array(trailCount);
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            const pos = new Float32Array(CONFIG.sparkCount * 3);
+            const col = new Float32Array(CONFIG.sparkCount * 3);
+            const size = new Float32Array(CONFIG.sparkCount);
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(col, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(size, 1));
+
+            // Shader 材质：支持单独控制每个粒子的大小
             const material = new THREE.ShaderMaterial({
-                uniforms: { pointTexture: { value: createCircleTexture() } },
-                vertexShader: `attribute float size; varying vec3 vColor; void main() { vColor = color; vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 ); gl_PointSize = size * ( 300.0 / -mvPosition.z ); gl_Position = projectionMatrix * mvPosition; }`,
-                fragmentShader: `uniform sampler2D pointTexture; varying vec3 vColor; void main() { gl_FragColor = vec4( vColor, 1.0 ); gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord ); }`,
+                uniforms: { tex: { value: createGlowTexture() } },
+                vertexShader: `
+                    attribute float size; varying vec3 vColor;
+                    void main() {
+                        vColor = color;
+                        vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+                        gl_PointSize = size * ( 300.0 / -mvPosition.z );
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tex; varying vec3 vColor;
+                    void main() {
+                        gl_FragColor = vec4( vColor, 1.0 ) * texture2D( tex, gl_PointCoord );
+                    }
+                `,
                 blending: THREE.AdditiveBlending, depthWrite: false, transparent: true
             });
-            trailParticles = new THREE.Points(geometry, material);
-            scene.add(trailParticles);
-            for(let i=0; i<trailCount; i++) trailData.push({ active: false, life: 0, velocity: new THREE.Vector3() });
-            // 初始化移出屏幕
-            for(let i=0; i<trailCount*3; i++) positions[i] = 9999;
-        }
 
-        function generateShape(type, colorHex) {
-            const count = CONFIG.particleCount;
-            const positions = particles.geometry.attributes.position.array;
-            const colors = particles.geometry.attributes.color.array;
-            const baseColorObj = new THREE.Color(colorHex || '#00ff00');
-            
-            for (let i = 0; i < count; i++) {
-                const data = particleData[i];
-                let x, y, z;
-                if (type === 'tree') {
-                    const p = i / count; 
-                    const angle = i * 0.1; 
-                    const radius = (1 - p) * 9; 
-                    const height = p * 22 - 11; 
-                    x = Math.cos(angle) * radius; z = Math.sin(angle) * radius; y = height;
-                } else if (type === 'lantern') {
-                    const phi = Math.acos(-1 + (2 * i) / count);
-                    const theta = Math.sqrt(count * Math.PI) * phi;
-                    const r = 8;
-                    x = r * Math.cos(theta) * Math.sin(phi); y = r * Math.sin(theta) * Math.sin(phi); z = r * Math.cos(phi);
-                } else {
-                    const angle = Math.random() * Math.PI * 2; const r = Math.random() * 6;
-                    x = Math.cos(angle) * r; z = Math.sin(angle) * r; y = (Math.random() - 0.5) * 10;
-                }
-                data.home.set(x, y, z); 
-                if (Math.random() < 0.15) { 
-                    const rand = Math.random();
-                    if(rand < 0.33) data.baseColor.set('#ff0055');
-                    else if(rand < 0.66) data.baseColor.set('#ffd700');
-                    else data.baseColor.set('#00f2ff');
-                    data.isOrnament = true;
-                } else {
-                    data.baseColor.copy(baseColorObj);
-                    data.baseColor.multiplyScalar(0.4 + Math.random()*0.6); 
-                    data.isOrnament = false;
-                }
-                colors[i*3] = data.baseColor.r; colors[i*3+1] = data.baseColor.g; colors[i*3+2] = data.baseColor.b;
+            sparkParticles = new THREE.Points(geometry, material);
+            scene.add(sparkParticles);
+
+            // 初始化物理池 (隐藏在远处)
+            for(let i=0; i<CONFIG.sparkCount; i++) {
+                pos[i*3] = 9999;
+                sparkData.push({
+                    active: false,
+                    life: 0,
+                    velocity: new THREE.Vector3(0,0,0) // 真正的物理速度矢量
+                });
             }
-            particles.geometry.attributes.position.needsUpdate = true;
-            particles.geometry.attributes.color.needsUpdate = true;
         }
 
+        // === 动画循环 (物理引擎) ===
         function animate() {
             requestAnimationFrame(animate);
 
+            // 1. 音频分析
             let bass = 0, treble = 0;
             if (analyser && isAudioInit) {
                 analyser.getByteFrequencyData(dataArray);
-                bass = (dataArray.slice(0, 10).reduce((a,b)=>a+b)/10) / 255; 
+                bass = (dataArray.slice(0, 5).reduce((a,b)=>a+b)/5) / 255;
                 treble = (dataArray.slice(20, 40).reduce((a,b)=>a+b)/20) / 255;
             }
 
-            const positions = particles.geometry.attributes.position.array;
-            const colors = particles.geometry.attributes.color.array;
-            
-            // === 修复后的交互逻辑 ===
-            // 使用 raycaster.intersectPlane 确保永远能计算出 3D 坐标
+            // 2. 交互射线检测 (强制与 Z=0 平面相交，确保鼠标位置永远有效)
             raycaster.setFromCamera(mouse, camera);
-            // 强制计算射线与 Z=0 平面的交点，这样 mouse3D 永远是有效的
-            raycaster.ray.intersectPlane(interactionPlane, mouse3D);
+            raycaster.ray.intersectPlane(planeZ, mouse3D);
 
-            if (isTouching && mouse3D) {
-                // 如果在触摸/移动，疯狂发射火花
-                for(let k=0; k<6; k++) {
-                    spawnTrail(
-                        mouse3D.x + (Math.random()-0.5)*1.5, 
-                        mouse3D.y + (Math.random()-0.5)*1.5, 
-                        mouse3D.z + (Math.random()-0.5)*1.5
-                    );
-                }
+            // 计算鼠标速度，用于决定火花喷射量
+            const mouseSpeed = mouse3D.distanceTo(lastMouse3D);
+            lastMouse3D.copy(mouse3D);
+
+            // 如果在触摸且移动，根据速度喷射火花 (速度越快，喷得越多)
+            if (isInteracting && mouseSpeed > 0.1) {
+                const count = Math.min(Math.floor(mouseSpeed * 20), 10); // 动态数量
+                spawnSparkBurst(mouse3D, count);
             }
 
-            // 更新粒子位置
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                const data = particleData[i];
-                const ix = i * 3;
-                
-                // 1. 基础运动
-                let tx = data.home.x * (1 + bass * 0.5);
-                let ty = data.home.y * (1 + bass * 0.2); 
-                let tz = data.home.z * (1 + bass * 0.5);
+            // === 更新主体粒子 ===
+            const pPos = particles.geometry.attributes.position.array;
+            const pCol = particles.geometry.attributes.color.array;
 
-                // 2. 磁场斥力
-                if (isTouching && mouse3D) { 
-                    const dx = positions[ix] - mouse3D.x;
-                    const dy = positions[ix+1] - mouse3D.y;
-                    const dz = positions[ix+2] - mouse3D.z;
+            for(let i=0; i<CONFIG.particleCount; i++) {
+                const d = particleData[i];
+                const ix = i*3;
+
+                // 音乐律动目标计算
+                let tx = d.home.x * (1 + bass * 0.4);
+                let ty = d.home.y * (1 + bass * 0.15);
+                let tz = d.home.z * (1 + bass * 0.4);
+
+                // 磁场斥力 (Physics)
+                if (isInteracting) {
+                    const dx = pPos[ix] - mouse3D.x;
+                    const dy = pPos[ix+1] - mouse3D.y;
+                    const dz = pPos[ix+2] - mouse3D.z;
                     const distSq = dx*dx + dy*dy + dz*dz;
                     
-                    if (distSq < 50) { 
+                    if (distSq < 60) {
                         const dist = Math.sqrt(distSq);
-                        const force = (50 - distSq) / 50; 
-                        tx += (dx / dist) * force * 5;
-                        ty += (dy / dist) * force * 5;
-                        tz += (dz / dist) * force * 5;
+                        const force = (60 - distSq) / 60; // 0~1
+                        // 斥力推开
+                        tx += (dx/dist) * force * 6;
+                        ty += (dy/dist) * force * 6;
+                        tz += (dz/dist) * force * 6;
                     }
                 }
 
-                // 3. 缓动
-                positions[ix] += (tx - positions[ix]) * 0.1;
-                positions[ix+1] += (ty - positions[ix+1]) * 0.1;
-                positions[ix+2] += (tz - positions[ix+2]) * 0.1;
+                // 缓动归位
+                pPos[ix] += (tx - pPos[ix]) * 0.1;
+                pPos[ix+1] += (ty - pPos[ix+1]) * 0.1;
+                pPos[ix+2] += (tz - pPos[ix+2]) * 0.1;
 
-                // 4. 闪烁
-                if (data.isOrnament && treble > 0.4) {
-                    colors[ix] = 1; colors[ix+1] = 1; colors[ix+2] = 1; 
+                // 颜色闪烁
+                if (d.isOrnament && treble > 0.4) {
+                    pCol[ix]=1; pCol[ix+1]=1; pCol[ix+2]=1;
                 } else {
-                    colors[ix] += (data.baseColor.r - colors[ix]) * 0.1;
-                    colors[ix+1] += (data.baseColor.g - colors[ix+1]) * 0.1;
-                    colors[ix+2] += (data.baseColor.b - colors[ix+2]) * 0.1;
+                    pCol[ix] += (d.baseColor.r - pCol[ix]) * 0.05;
+                    pCol[ix+1] += (d.baseColor.g - pCol[ix+1]) * 0.05;
+                    pCol[ix+2] += (d.baseColor.b - pCol[ix+2]) * 0.05;
                 }
             }
             particles.geometry.attributes.position.needsUpdate = true;
             particles.geometry.attributes.color.needsUpdate = true;
 
-            updateTrails();
-            controls.update(); 
+            // === 更新火花粒子 (牛顿物理) ===
+            updateSparks();
+
+            controls.update();
             renderer.render(scene, camera);
         }
 
-        // === 火花逻辑 ===
-        function spawnTrail(x, y, z) {
-            const idx = trailData.findIndex(t => !t.active);
-            if (idx === -1) return; 
-            const t = trailData[idx];
-            t.active = true; t.life = 1.0;
-            t.velocity.set((Math.random()-0.5)*0.5, (Math.random()-0.5)*0.5, (Math.random()-0.5)*0.5);
-            const positions = trailParticles.geometry.attributes.position.array;
-            positions[idx*3] = x; positions[idx*3+1] = y; positions[idx*3+2] = z;
-            const colors = trailParticles.geometry.attributes.color.array;
-            colors[idx*3] = 1.0; colors[idx*3+1] = 0.8; colors[idx*3+2] = 0.3; // 金色
-            const sizes = trailParticles.geometry.attributes.size.array;
-            sizes[idx] = Math.random() * 4 + 2;
-        }
+        // === 物理火花系统 ===
+        function spawnSparkBurst(center, count) {
+            let spawned = 0;
+            for(let i=0; i<CONFIG.sparkCount; i++) {
+                if(spawned >= count) break;
+                const s = sparkData[i];
+                if(!s.active) {
+                    s.active = true;
+                    s.life = 1.0;
+                    
+                    // 初始位置：鼠标中心 + 少量随机抖动
+                    const pArr = sparkParticles.geometry.attributes.position.array;
+                    pArr[i*3] = center.x + (Math.random()-0.5);
+                    pArr[i*3+1] = center.y + (Math.random()-0.5);
+                    pArr[i*3+2] = center.z + (Math.random()-0.5);
 
-        function updateTrails() {
-            const positions = trailParticles.geometry.attributes.position.array;
-            const sizes = trailParticles.geometry.attributes.size.array;
-            for (let i = 0; i < trailData.length; i++) {
-                const t = trailData[i];
-                if (!t.active) continue;
-                t.life -= 0.03; 
-                if (t.life <= 0) { t.active = false; positions[i*3] = 9999; continue; }
-                positions[i*3] += t.velocity.x; positions[i*3+1] += t.velocity.y; positions[i*3+2] += t.velocity.z;
-                sizes[i] = t.life * 5;
+                    // 初始速度：爆炸向四周扩散 (Explosion Velocity)
+                    s.velocity.set(
+                        (Math.random()-0.5) * 0.5,
+                        (Math.random()-0.5) * 0.5, 
+                        (Math.random()-0.5) * 0.5
+                    );
+
+                    // 颜色：金色/橙色随机
+                    const cArr = sparkParticles.geometry.attributes.color.array;
+                    cArr[i*3] = 1.0;
+                    cArr[i*3+1] = 0.5 + Math.random()*0.5; // 金黄
+                    cArr[i*3+2] = 0.0;
+
+                    // 大小随机
+                    sparkParticles.geometry.attributes.size.array[i] = Math.random()*3 + 2;
+                    spawned++;
+                }
             }
-            trailParticles.geometry.attributes.position.needsUpdate = true;
-            trailParticles.geometry.attributes.size.needsUpdate = true;
         }
 
-        // === 修复后的交互事件 ===
-        function onMove(event) {
-            isTouching = true;
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            // 如果鼠标静止 100ms，认为停止触摸，停止喷射
-            clearTimeout(window.moveTimer);
-            window.moveTimer = setTimeout(() => { isTouching = false; }, 100);
+        function updateSparks() {
+            const pArr = sparkParticles.geometry.attributes.position.array;
+            const sArr = sparkParticles.geometry.attributes.size.array;
+            
+            for(let i=0; i<CONFIG.sparkCount; i++) {
+                const s = sparkData[i];
+                if(!s.active) continue;
+
+                // 1. 生命衰减
+                s.life -= 0.015;
+                if(s.life <= 0) {
+                    s.active = false;
+                    pArr[i*3] = 9999; // 移出视线
+                    continue;
+                }
+
+                // 2. 物理应用
+                // 重力 (Gravity)
+                s.velocity.y -= 0.005; 
+                // 阻力 (Drag)
+                s.velocity.multiplyScalar(0.96);
+
+                // 3. 位置更新
+                pArr[i*3]   += s.velocity.x;
+                pArr[i*3+1] += s.velocity.y;
+                pArr[i*3+2] += s.velocity.z;
+
+                // 4. 大小随生命变小
+                sArr[i] = s.life * 4;
+            }
+            sparkParticles.geometry.attributes.position.needsUpdate = true;
+            sparkParticles.geometry.attributes.size.needsUpdate = true;
         }
-        function onTouchMove(event) {
-            event.preventDefault();
-            isTouching = true;
-            mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
-            clearTimeout(window.moveTimer);
-            window.moveTimer = setTimeout(() => { isTouching = false; }, 100);
+
+        // === 形状生成器 ===
+        function generateShape(type, colorHex) {
+            const count = CONFIG.particleCount;
+            const baseColorObj = new THREE.Color(colorHex);
+
+            for (let i = 0; i < count; i++) {
+                const d = particleData[i];
+                let x,y,z;
+
+                // 螺旋树算法
+                if (type === 'tree') {
+                    const p = i / count;
+                    const angle = i * 0.15; // 增加螺旋密度
+                    const radius = (1 - p) * 9; 
+                    const height = p * 24 - 12;
+                    // 增加树的随机抖动，更像自然针叶
+                    x = Math.cos(angle) * radius + (Math.random()-0.5)*0.8;
+                    z = Math.sin(angle) * radius + (Math.random()-0.5)*0.8;
+                    y = height;
+                } 
+                // 灯笼算法
+                else if (type === 'lantern') {
+                    const phi = Math.acos(-1 + (2 * i) / count);
+                    const theta = Math.sqrt(count * Math.PI) * phi;
+                    const r = 8;
+                    x = r * Math.cos(theta) * Math.sin(phi);
+                    y = r * Math.sin(theta) * Math.sin(phi);
+                    z = r * Math.cos(phi);
+                } 
+                // 蛋糕/爱心 (简易)
+                else {
+                     // 默认为球体散布
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    const r = 8;
+                    x = r * Math.sin(phi) * Math.cos(theta);
+                    y = r * Math.sin(phi) * Math.sin(theta);
+                    z = r * Math.cos(phi);
+                }
+
+                d.home.set(x,y,z);
+
+                // 颜色分配 (15% 装饰物)
+                if (Math.random() < 0.15) {
+                    const r = Math.random();
+                    if(r<0.33) d.baseColor.set('#ff3355');
+                    else if(r<0.66) d.baseColor.set('#ffdd00');
+                    else d.baseColor.set('#33ccff');
+                    d.isOrnament = true;
+                } else {
+                    d.baseColor.copy(baseColorObj);
+                    // 基础色加上亮度噪点，更有质感
+                    d.baseColor.multiplyScalar(0.3 + Math.random()*0.7);
+                    d.isOrnament = false;
+                }
+            }
         }
-        function onWindowResize() {
+
+        // === 交互事件 (兼容 PC 和 Mobile) ===
+        function onMove(e) {
+            isInteracting = true;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            resetInteractTimer();
+        }
+        function onTouchMove(e) {
+            e.preventDefault();
+            isInteracting = true;
+            mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
+            resetInteractTimer();
+        }
+        let interactTimer;
+        function resetInteractTimer() {
+            clearTimeout(interactTimer);
+            interactTimer = setTimeout(() => isInteracting = false, 100);
+        }
+
+        function createGlowTexture() {
+            const c = document.createElement('canvas'); c.width=32; c.height=32;
+            const ctx = c.getContext('2d');
+            const g = ctx.createRadialGradient(16,16,0,16,16,16);
+            g.addColorStop(0,'rgba(255,255,255,1)');
+            g.addColorStop(0.4,'rgba(255,255,255,0.2)');
+            g.addColorStop(1,'rgba(0,0,0,0)');
+            ctx.fillStyle=g; ctx.fillRect(0,0,32,32);
+            const t = new THREE.Texture(c); t.needsUpdate=true; return t;
+        }
+
+        function getFormattedDate() {
+            const d = new Date(); return `${('0'+(d.getMonth()+1)).slice(-2)}-${('0'+d.getDate()).slice(-2)}`;
+        }
+        
+        function initAudio() {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser(); analyser.fftSize = 256;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(s => {
+                    audioCtx.createMediaStreamSource(s).connect(analyser);
+                }).catch(e=>console.log(e));
+            } catch(e){}
+        }
+
+        // === UI 逻辑 ===
+        window.onWindowResize = () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
-        function createCircleTexture() {
-            const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
-            const context = canvas.getContext('2d');
-            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
-            gradient.addColorStop(0, 'rgba(255,255,255,1)'); gradient.addColorStop(0.3, 'rgba(255,255,255,0.7)'); gradient.addColorStop(1, 'rgba(0,0,0,0)');
-            context.fillStyle = gradient; context.fillRect(0,0,32,32);
-            const texture = new THREE.Texture(canvas); texture.needsUpdate = true; return texture;
-        }
-        function getFormattedDate() {
-            const d = new Date(); return `${('0'+(d.getMonth()+1)).slice(-2)}-${('0'+d.getDate()).slice(-2)}`;
-        }
-        function initAudio() {
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioCtx.createAnalyser(); analyser.fftSize = 128;
-                dataArray = new Uint8Array(analyser.frequencyBinCount);
-                navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-                    const source = audioCtx.createMediaStreamSource(stream); source.connect(analyser);
-                }).catch(e => console.log("Mic denied"));
-            } catch(e) {}
-        }
 
-        // === UI 逻辑 (包含你的输入限制要求) ===
         window.ui = {
-            openModal: () => document.getElementById('modal').style.display = 'block',
-            closeModal: () => document.getElementById('modal').style.display = 'none',
+            openModal: () => {
+                const m = document.getElementById('modal');
+                m.style.display = 'block';
+                setTimeout(()=>m.classList.add('active'), 10);
+            },
+            closeModal: () => {
+                const m = document.getElementById('modal');
+                m.classList.remove('active');
+                setTimeout(()=>m.style.display = 'none', 300);
+            },
             onThemeChange: () => {
-                const theme = document.getElementById('input-theme').value;
-                const dateLabel = document.getElementById('label-date');
-                // 主题3是生日，要求必填
-                if (theme === '3') {
-                    dateLabel.innerHTML = "生日日期 <span style='color:#ff0055'>(必填)</span>";
-                } else {
-                    dateLabel.innerHTML = "日期 (选填，如果是纪念日请填写)";
-                }
+                const t = document.getElementById('input-theme').value;
+                const l = document.getElementById('label-date');
+                // 主题 3 是生日，必填
+                if(t === '3') l.innerHTML = '生日日期 <span class="required-mark">* (必填)</span>';
+                else l.innerText = '日期 (MM-DD, 纪念日选填)';
             },
             submitForm: async () => {
                 const name = document.getElementById('input-name').value;
                 const date = document.getElementById('input-date').value;
-                const themeId = document.getElementById('input-theme').value;
+                const theme = document.getElementById('input-theme').value;
                 const wish = document.getElementById('input-wish').value;
 
-                if(!name) { alert('名字一定要填哦'); return; }
+                if(!name) { alert('请填写对方的名字'); return; }
+                if(theme === '3' && !date) { alert('生日主题必须填写日期哦 (例如 05-20)'); return; }
+
+                const btn = document.querySelector('.submit-btn');
+                const oldText = btn.innerText;
+                btn.innerText = '正在上传...';
                 
-                // 生日主题 (value=3) 必须填日期
-                if (themeId === '3' && !date) {
-                    alert('既然是生日祝福，日期是必须要填的哦 (MM-DD)');
-                    return;
-                }
+                // 如果没填日期且不是生日，给个默认占位，防止报错
+                const finalDate = date || getFormattedDate();
 
-                // 如果没填日期，且不是生日，给一个默认占位符，防止数据库报错
-                const finalDate = date || getFormattedDate(); 
-
-                document.querySelector('.submit-btn').innerText = '正在制作...';
                 const { error } = await supabase.from('private_events').insert({
-                    user_key: name, event_date: finalDate, theme_id: parseInt(themeId), custom_message: wish
+                    user_key: name, event_date: finalDate, theme_id: parseInt(theme), custom_message: wish
                 });
-                
+
                 if(error) alert('Error: ' + error.message);
                 else {
                     const link = `${window.location.origin}${window.location.pathname}?to=${name}`;
-                    document.getElementById('result-link').innerHTML = `制作成功! <br> <a href="${link}" style="color:#ffcc00">${link}</a>`;
+                    document.getElementById('result-link').innerHTML = `制作成功！<br><a href="${link}" style="color:#ffcc00; text-decoration:none; border-bottom:1px dashed #ffcc00">${link}</a>`;
                 }
-                document.querySelector('.submit-btn').innerText = '生成链接';
+                btn.innerText = oldText;
             }
         }
     </script>
